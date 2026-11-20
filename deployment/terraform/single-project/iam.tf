@@ -18,7 +18,6 @@ locals {
   }
 }
 
-
 # Get the project number. depends_on defers the read to apply time, after
 # bootstrap has enabled Cloud Resource Manager.
 data "google_project" "project" {
@@ -57,10 +56,3 @@ resource "google_project_iam_member" "agent_identity_roles" {
   role    = each.value
   member  = "principal://${google_vertex_ai_reasoning_engine.app.spec[0].effective_identity}"
 }
-
-resource "google_storage_bucket_iam_member" "agent_identity_logs_bucket" {
-  bucket = google_storage_bucket.logs_data_bucket.name
-  role   = "roles/storage.objectAdmin"
-  member = "principal://${google_vertex_ai_reasoning_engine.app.spec[0].effective_identity}"
-}
-

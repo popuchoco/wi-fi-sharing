@@ -53,7 +53,13 @@ confirm sharing; the app must not silently export every stored credential.
 
 ## Implementation in this repository
 
-- `frontend/static/index.html` detects the client OS before requesting device data.
+- The primary `frontend/static/index.html` screen is local sharing, not chat. It
+  detects the client OS on the client before deciding whether a local adapter
+  can be called. Opening Help is optional; the Help Agent is contacted only
+  after the user opens Help and opts into cloud processing.
+- Help is an instruction-only guide with no Wi-Fi, file, QR, or cloud-storage
+  tools. The browser sends only the Help message and normalized client OS after
+  consent; no Wi-Fi profile data or QR is included.
 - `frontend/device_wifi.py` implements the Windows adapter using
   `wlanapi.dll`: current connection, saved profile names, and user-selected
   profile lookup. `frontend/windows_wifi_elevated.py` is a one-shot UAC helper

@@ -39,11 +39,6 @@ resource "google_vertex_ai_reasoning_engine" "app" {
         memory = "8Gi"
       }
 
-      env {
-        name  = "LOGS_BUCKET_NAME"
-        value = google_storage_bucket.logs_data_bucket.name
-      }
-
       # GOOGLE_CLOUD_PROJECT is reserved by Agent Runtime (the platform injects
       # it) and rejected in deployment_spec.env; GOOGLE_CLOUD_LOCATION is allowed.
       env {
@@ -61,9 +56,7 @@ resource "google_vertex_ai_reasoning_engine" "app" {
         value = "simple-agent"
       }
 
-      # Prompt/response content capture, off by default. Go: set "true" to log
-      # content to OTLP log events for the completions view. Python: content goes to
-      # GCS via the completion hook, so NO_CONTENT.
+      # Keep prompt/response capture, completion uploads, and telemetry disabled.
       env {
         name  = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
         value = "NO_CONTENT"
@@ -80,24 +73,10 @@ resource "google_vertex_ai_reasoning_engine" "app" {
       }
 
       env {
-        name  = "OTEL_INSTRUMENTATION_GENAI_UPLOAD_FORMAT"
-        value = "jsonl"
-      }
-
-      env {
-        name  = "OTEL_INSTRUMENTATION_GENAI_COMPLETION_HOOK"
-        value = "upload"
-      }
-
-      env {
-        name  = "OTEL_INSTRUMENTATION_GENAI_UPLOAD_BASE_PATH"
-        value = "gs://${google_storage_bucket.logs_data_bucket.name}/completions"
-      }
-
-      env {
         name  = "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY"
-        value = "true"
+        value = "false"
       }
+
     }
 
     source_code_spec {
@@ -112,13 +91,13 @@ resource "google_vertex_ai_reasoning_engine" "app" {
   # overwrites the same source_code_spec with the real code. The deploy writes
   # source_code_spec, so the placeholder must use it too — a container_spec
   # placeholder would be left alongside it and Agent Runtime rejects the update.
-  # Ignore the spec and deployment_spec so Terraform never reverts the deployed agent.
-  # agents-cli deploy also writes the A2A agent card, which Agent Registry reads.
+  # Ignore source code because agents-cli deploys the agent implementation.
+  # Keep deployment_spec managed here so privacy-related environment settings
+  # (capture, telemetry, and credential tools) are applied by Terraform.
   lifecycle {
     ignore_changes = [
       spec[0].container_spec,
       spec[0].source_code_spec,
-      spec[0].deployment_spec,
       spec[0].agent_card,
     ]
   }

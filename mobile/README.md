@@ -3,6 +3,9 @@
 This is a **native Android/iOS app shell**, not a PWA. Capacitor supplies the
 native app runtime and a local plugin calls each platform's Wi-Fi APIs.
 
+The app is a separate OS-first client. The web Help Agent is not required to
+share a network and is not invoked by this native app.
+
 ## OS-first flow
 
 `Capacitor.getPlatform()` identifies Android or iOS before `NativeWifiBridge`

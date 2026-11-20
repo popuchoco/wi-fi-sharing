@@ -24,7 +24,7 @@ from __future__ import annotations
 import functools
 import os
 
-from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
+from google.adk.artifacts import InMemoryArtifactService
 from google.adk.cli.service_registry import get_service_registry
 from google.adk.cli.utils.service_factory import create_session_service_from_options
 
@@ -61,9 +61,7 @@ def get_session_service():
 
 @functools.cache
 def get_artifact_service():
-    """Process-wide artifact service: GCS when a bucket is set, else in-memory."""
-    if bucket := os.environ.get("LOGS_BUCKET_NAME"):
-        return GcsArtifactService(bucket_name=bucket)
+    """Use transient in-memory artifacts; the Help agent has no artifact tools."""
     return InMemoryArtifactService()
 
 
