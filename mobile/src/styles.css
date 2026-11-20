@@ -1,0 +1,28 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+  color: #15212b;
+  background: #f8fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100dvh; }
+main { min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom)); }
+.shell { width: min(100%, 560px); margin: 0 auto; display: grid; gap: 18px; }
+header { padding: 14px 2px 4px; }
+.eyebrow, .card-kicker { margin: 0 0 8px; color: #426171; font-size: 0.75rem; font-weight: 750; letter-spacing: 0.09em; }
+h1 { margin: 0; max-width: 16ch; font-size: clamp(1.8rem, 8vw, 2.5rem); line-height: 1.12; letter-spacing: -0.035em; }
+.lede { margin: 12px 0 0; color: #52626b; line-height: 1.55; }
+.device-card, .network-card { border: 1px solid #d9e1e4; border-radius: 16px; padding: 18px; background: #fff; box-shadow: 0 6px 22px rgba(21, 33, 43, 0.04); }
+.device-card h2, .network-card h2 { margin: 0; font-size: 1.2rem; overflow-wrap: anywhere; }
+.status, #networkMeta { margin: 9px 0 0; color: #52626b; line-height: 1.55; }
+.status.error { color: #a52720; }
+.primary, .secondary { min-height: 50px; border: 0; border-radius: 12px; padding: 12px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+.primary { background: #155e63; color: #fff; }
+.secondary { border: 1px solid #b9cccf; background: #fff; color: #17464b; }
+.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+.secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+.privacy-note { margin: 0; padding: 12px 14px; border-left: 3px solid #84a9a7; background: #eef5f4; color: #43575b; font-size: 0.9rem; line-height: 1.55; }

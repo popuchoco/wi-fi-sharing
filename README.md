@@ -50,16 +50,16 @@
 
 ### 本機裝置 Wi-Fi 分享（Windows 原型）
 
-聊天前端另提供「分享這台裝置的 Wi-Fi」入口。使用者可先看見並選擇本機已儲存的網路，再明確要求產生 QR Code。Windows 版本透過 `wlanapi.dll` 讀取目前連線與設定檔；QR 圖片在本機記憶體中產生，不上傳 Cloud Storage。
+聊天前端另提供「分享這台裝置的 Wi-Fi」入口。使用者可先看見並選擇本機已儲存的網路，再明確要求產生 QR Code。Windows 版本透過 `wlanapi.dll` 讀取目前連線與設定檔；QR 圖片在本機記憶體中產生，不上傳 Cloud Storage。`mobile/` 另提供 Android/iOS 原生 App 與系統 API Bridge。
 
-這個系統 API 連接器僅限本機開發模式，不會在 Cloud Run / Agent Engine 代替訪客讀取 Wi-Fi。PowerShell 啟動方式：
+Windows 系統 API 連接器僅限本機開發模式，不會在 Cloud Run / Agent Engine 代替訪客讀取 Wi-Fi。受保護網路會在使用者選定後啟動獨立 UAC helper；聊天 Proxy 本身不提權。PowerShell 啟動方式：
 
 ```powershell
 $env:DEVICE_WIFI_LOCAL_MODE = "1"
 python main.py
 ```
 
-詳見 [裝置 Wi-Fi 產品規劃與 OS 整合](DEVICE_WIFI_PRODUCT_PLAN.md)。Windows 一般需要系統管理員權限才能取得明文密碼；原型不會自動提權，也不建議將整個聊天 Proxy 以管理員身分執行。Android、iOS 和 macOS 將使用各自的系統分享／QR 流程，後續需實作原生 Adapter。
+詳見 [裝置 Wi-Fi 產品規劃與 OS 整合](DEVICE_WIFI_PRODUCT_PLAN.md) 及 `mobile/README.md`。Android/iOS 原生 App 先讀取 OS 允許提供的目前連線資訊；已儲存的密碼仍交由 OS 分享 QR／分享流程處理。
 
 ---
 

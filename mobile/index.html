@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f8fafc" />
+    <title>Wi-Fi 分享家</title>
+  </head>
+  <body>
+    <main id="app" aria-live="polite">
+      <section class="shell">
+        <header>
+          <p class="eyebrow">WI-FI SHARING</p>
+          <h1>分享這台裝置的 Wi-Fi</h1>
+          <p class="lede">先辨識裝置系統，再由原生連接器查詢目前連線資訊。</p>
+        </header>
+        <section class="device-card" aria-labelledby="deviceTitle">
+          <div class="card-kicker">裝置系統</div>
+          <h2 id="deviceTitle">正在辨識…</h2>
+          <div id="deviceStatus" class="status" role="status">正在呼叫裝置原生 API…</div>
+        </section>
+        <section class="network-card" aria-labelledby="networkTitle">
+          <div class="card-kicker">目前連線</div>
+          <h2 id="networkTitle">尚未取得</h2>
+          <p id="networkMeta">按下按鈕後，才會呼叫 OS API 讀取目前網路資訊。</p>
+        </section>
+        <button id="readCurrentWifi" class="secondary" type="button" disabled>讀取目前 Wi-Fi</button>
+        <button id="shareSystemWifi" class="primary" type="button" disabled>查看已儲存網路的系統分享方式</button>
+        <p class="privacy-note">密碼不會由本 App 靜默匯出。若 OS 提供系統分享 QR 或原生分享介面，請在系統畫面中選擇網路並確認分享。</p>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

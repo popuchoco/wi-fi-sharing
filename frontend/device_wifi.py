@@ -9,11 +9,15 @@ The Windows adapter uses Native Wi-Fi (wlanapi.dll), not shell output parsing.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import ctypes
 import ipaddress
 import os
 import platform
+import subprocess
+import sys
+import tempfile
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -425,6 +429,7 @@ class WindowsWifiAdapter:
         finally:
             self._api.WlanCloseHandle(handle, None)
 
+
     def profiles(self) -> list[WifiProfile]:
         handle = self._open()
         try:
@@ -520,11 +525,114 @@ class WindowsWifiAdapter:
             self._api.WlanCloseHandle(handle, None)
 
 
+def _run_narrow_elevated_qr_helper(profile_id: str) -> bytes:
+    """UAC-launch a one-shot helper that returns only the selected QR image."""
+    if os.name != "nt":
+        raise PermissionRequired("此系統不支援 Windows UAC 授權流程。")
+
+    import shutil
+    from ctypes import wintypes
+    from pathlib import Path
+
+    _decode_wifi_profile_id(profile_id)  # Validate before passing to the child.
+    temp_dir = Path(tempfile.mkdtemp(prefix="wifi-share-"))
+    output_path = temp_dir / "result.png"
+    helper = Path(__file__).with_name("windows_wifi_elevated.py").resolve()
+    interpreter = Path(sys.executable).resolve()
+
+    class _ShellExecuteInfo(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("fMask", wintypes.DWORD),
+            ("hwnd", wintypes.HWND),
+            ("lpVerb", wintypes.LPCWSTR),
+            ("lpFile", wintypes.LPCWSTR),
+            ("lpParameters", wintypes.LPCWSTR),
+            ("lpDirectory", wintypes.LPCWSTR),
+            ("nShow", ctypes.c_int),
+            ("hInstApp", ctypes.c_void_p),
+            ("lpIDList", ctypes.c_void_p),
+            ("lpClass", wintypes.LPCWSTR),
+            ("hkeyClass", ctypes.c_void_p),
+            ("dwHotKey", wintypes.DWORD),
+            ("hIcon", ctypes.c_void_p),
+            ("hProcess", ctypes.c_void_p),
+        ]
+
+    process_handle = None
+    try:
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        shell32.ShellExecuteExW.argtypes = [ctypes.POINTER(_ShellExecuteInfo)]
+        shell32.ShellExecuteExW.restype = wintypes.BOOL
+        kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        kernel32.GetExitCodeProcess.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+        kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        kernel32.TerminateProcess.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        info = _ShellExecuteInfo()
+        info.cbSize = ctypes.sizeof(info)
+        info.fMask = 0x00000040 | 0x00000100  # NOCLOSEPROCESS | NOASYNC
+        info.lpVerb = "runas"
+        info.lpFile = str(interpreter)
+        info.lpParameters = subprocess.list2cmdline(
+            [str(helper), "--profile-id", profile_id, "--output", str(output_path)]
+        )
+        info.lpDirectory = str(helper.parent)
+        info.nShow = 0  # Keep the helper console hidden; UAC remains system-owned.
+
+        ctypes.set_last_error(0)
+        if not shell32.ShellExecuteExW(ctypes.byref(info)):
+            error = ctypes.get_last_error()
+            if error == 1223:  # ERROR_CANCELLED
+                raise PermissionRequired("使用者取消了 Windows 權限確認。")
+            raise PermissionRequired(f"無法啟動限權授權工具（錯誤碼 {error}）。")
+
+        process_handle = info.hProcess
+        wait_result = kernel32.WaitForSingleObject(process_handle, 120_000)
+        if wait_result == 0x00000102:  # WAIT_TIMEOUT
+            kernel32.TerminateProcess(process_handle, 1)
+            raise PermissionRequired("Windows 授權工具逾時，已停止處理。")
+        if wait_result != 0:
+            raise PermissionRequired("無法確認 Windows 授權工具的執行狀態。")
+
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(
+            process_handle, ctypes.byref(exit_code)
+        ) or exit_code.value != 0:
+            raise PermissionRequired(
+                "Windows 未授權讀取所選 Wi-Fi 密碼，或原生工具執行失敗。"
+            )
+        if not output_path.is_file():
+            raise WifiBridgeError("原生授權工具未產生 QR Code。")
+        return output_path.read_bytes()
+    finally:
+        if process_handle:
+            kernel32.CloseHandle(process_handle)
+        # The QR contains the Wi-Fi password; remove the temporary artifact as
+        # soon as the unprivileged parent has loaded it into memory.
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
 def _adapter() -> WindowsWifiAdapter:
     try:
         return WindowsWifiAdapter()
     except OSError as exc:
         raise WifiBridgeError("無法載入 Windows Native Wi-Fi API。") from exc
+
+
+def _create_profile_qr(profile_id: str) -> bytes:
+    try:
+        credentials = _adapter().reveal_profile(profile_id)
+        return make_wifi_qr_png(credentials)
+    except PermissionRequired:
+        return _run_narrow_elevated_qr_helper(profile_id)
 
 
 @router.get("/device/wifi/identity")
@@ -594,8 +702,7 @@ async def device_wifi_profile_qr(
             detail="請先明確確認要分享所選 Wi-Fi 網路。",
         )
     try:
-        credentials = _adapter().reveal_profile(profile_id)
-        png = make_wifi_qr_png(credentials)
+        png = await asyncio.to_thread(_create_profile_qr, profile_id)
     except PermissionRequired as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except WifiBridgeError as exc:

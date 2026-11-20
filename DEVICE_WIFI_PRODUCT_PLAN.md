@@ -46,25 +46,30 @@ confirm sharing; the app must not silently export every stored credential.
 
 | OS | Current connection | Saved profile list / password | Product path |
 |---|---|---|---|
-| Windows desktop | Native Wi-Fi API (`WlanQueryInterface`) | `WlanGetProfile`; plaintext keys are normally restricted to Administrators | Local Windows adapter. This repository implements the adapter and local QR route. A future installer should use a narrow UAC helper rather than elevate the chat proxy. |
-| Android | Native connectivity/Wi-Fi APIs, subject to runtime permission and API level | Ordinary apps cannot enumerate all system profiles; Android Settings can show a selected network's share QR | Native Android bridge for metadata; OS Settings QR/import for credentials. |
-| iOS/iPadOS | `NEHotspotNetwork.fetchCurrent` can return current network info only with required entitlement/authorization conditions | Passwords/Settings lets the user inspect/share; third-party apps have no general-purpose API to enumerate saved profiles | Native iOS bridge for allowed metadata; OS-mediated share/QR or user-led import for credentials. |
+| Windows desktop | Native Wi-Fi API (`WlanQueryInterface`) | `WlanGetProfile`; plaintext keys are normally restricted to Administrators | Implemented local adapter plus selected-profile UAC helper; helper emits one temporary QR and never elevates the chat proxy. |
+| Android | Native connectivity/Wi-Fi APIs, subject to runtime permission and API level | Ordinary apps cannot enumerate all system profiles; Android Settings can show a selected network's share QR | Implemented Capacitor adapter for current SSID/security metadata and Settings handoff for saved-network QR. |
+| iOS/iPadOS | `NEHotspotNetwork.fetchCurrent` can return current network info only with required entitlement/authorization conditions | Passwords/Settings lets the user inspect/share; third-party apps have no general-purpose API to enumerate saved profiles | Implemented Capacitor adapter source for current metadata and OS-sharing guidance; requires Apple entitlement/authorization and macOS/Xcode to build/test. |
 | macOS | CoreWLAN/native APIs | Keychain and app authorization govern secret access | Separate macOS adapter; not implemented in this milestone. |
 
 ## Implementation in this repository
 
 - `frontend/static/index.html` detects the client OS before requesting device data.
-- `frontend/device_wifi.py` implements the first Windows adapter using
+- `frontend/device_wifi.py` implements the Windows adapter using
   `wlanapi.dll`: current connection, saved profile names, and user-selected
-  profile lookup.
+  profile lookup. `frontend/windows_wifi_elevated.py` is a one-shot UAC helper
+  for the selected protected network; it has no HTTP listener or cloud credentials.
 - Local-only endpoints live under `/device/wifi/*`. They require
   `DEVICE_WIFI_LOCAL_MODE=1`, reject non-loopback callers, compare client and
   host OS, and are disabled on Cloud Run/Agent Engine.
 - QR PNG creation happens in memory on the local frontend process. The QR image
   is not uploaded to the repo's public Cloud Storage bucket.
-- Android, iOS, and macOS native adapters remain follow-up implementation work;
-  those platforms will use their system-mediated credential sharing rather than
-  pretending a browser can read OS secrets.
+- `mobile/` is the native Android/iOS app shell. It detects `Capacitor.getPlatform()`
+  before calling the platform plugin; current-network permission is requested
+  only after the user taps the read button. Android returns current metadata and opens
+  Wi-Fi Settings for an OS-generated saved-network QR. iOS uses
+  `NEHotspotNetwork.fetchCurrent` for allowed metadata and provides OS-owned
+  credential-sharing instructions; the public iOS API does not return saved passwords.
+- macOS native support remains future work.
 
 ## Local Windows developer run
 
@@ -77,11 +82,10 @@ python main.py
 
 Open `http://127.0.0.1:8088`. The local bridge binds only to loopback. Current
 SSID/profile names do not require reading the password. Windows normally
-requires an elevated process to return a plaintext stored key; the current
-prototype reports that requirement instead of self-elevating. Do not run the
-full chat proxy as Administrator for production use. Production Windows support
-should move only the selected-profile operation into a small, separately
-approved elevation helper.
+requires an elevated process to return a plaintext stored key; after the user
+selects one profile, a separate one-shot helper requests UAC and writes only a
+temporary QR PNG. The chat proxy itself remains unprivileged. Android/iOS build
+steps and platform-specific requirements are in `mobile/README.md`.
 
 ## Platform references
 

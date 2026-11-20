@@ -44,6 +44,27 @@ def test_wifi_profile_id_round_trip():
     assert _decode_wifi_profile_id(profile_id) == (interface_id, "Guest:Net;5G")
 
 
+def test_windows_adapter_exposes_saved_profile_operations():
+    assert callable(device_wifi.WindowsWifiAdapter.profiles)
+    assert callable(device_wifi.WindowsWifiAdapter.reveal_profile)
+
+
+def test_protected_profile_uses_narrow_elevation_helper(monkeypatch):
+    class ProtectedAdapter:
+        def reveal_profile(self, _profile_id):
+            raise device_wifi.PermissionRequired("elevation required")
+
+    profile_id = _wifi_profile_id(
+        "a5b4736a-28a6-4f10-9e4b-5d2d37d0af64", "Guest"
+    )
+    monkeypatch.setattr(device_wifi, "_adapter", lambda: ProtectedAdapter())
+    monkeypatch.setattr(
+        device_wifi, "_run_narrow_elevated_qr_helper", lambda value: value.encode()
+    )
+
+    assert device_wifi._create_profile_qr(profile_id) == profile_id.encode()
+
+
 def test_parse_windows_profile_xml():
     xml = """<?xml version="1.0"?>
     <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
