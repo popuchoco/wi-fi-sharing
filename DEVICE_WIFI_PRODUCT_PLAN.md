@@ -20,8 +20,9 @@ confirm sharing; the app must not silently export every stored credential.
    credentials only after that action and only if the OS grants access.
 5. **Generate the Wi-Fi QR locally.** Return an in-memory PNG to the UI. Do not
    send credentials to Gemini/A2A, Firestore, logs, or public Cloud Storage.
-6. **Share or download only after the user sees the QR.** Closing the dialog
-   revokes its in-memory object URL.
+6. **Share or download only after the user sees the QR.** Hiding the QR or closing
+   the page revokes its object URL on a best-effort basis; exported copies remain
+   outside the app's control.
 
 ## Milestones
 
@@ -41,6 +42,21 @@ confirm sharing; the app must not silently export every stored credential.
   only where the OS/API permits it.
 - On restricted platforms, fall back to the system's own share/QR UI or user-led
   import; do not promise silent access to saved credentials.
+
+### M3 — Desktop 1.0 Release Candidate (in progress)
+
+- Explain each native OS's credential-access boundary before the user attempts to
+  reveal a selected profile; permission failures include an OS-owned fallback path.
+- Require a named confirmation immediately before reading the selected credential;
+  state plainly that the QR image contains the Wi-Fi password and can be copied.
+- Build unsigned package previews on their intended builders: Windows MSI/NSIS,
+  macOS DMG, Ubuntu 22.04 and Debian 12 DEB, and Fedora 45 RPM.
+- Run manual install, upgrade, remove, and native Wi-Fi smoke tests on real target
+  operating systems; CI compilation alone is not release validation.
+- Keep signing, notarization, public release, and Tauri updater disabled until the
+  repository owner provisions signing identities and a protected updater keypair.
+- Keep mobile maturity and Help Agent tools out of this release scope; they remain
+  follow-up milestones after desktop distribution is verified.
 
 ## Adapter support matrix
 

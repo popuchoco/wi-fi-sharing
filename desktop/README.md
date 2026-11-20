@@ -94,6 +94,12 @@ npx tauri icon assets/app-icon.svg --output src-tauri/icons
 WebKitGTK 4.1 的最低目標系統上建置，再於每個目標發行版驗證 `.deb`。Fedora `.rpm`
 應在 Fedora 建置與測試。對外發佈 macOS 套件前，還需要程式碼簽署與 notarization。
 
+GitHub Actions 的 **Desktop package previews** 可手動建置 Windows MSI/NSIS、macOS
+DMG、Ubuntu 22.04／Debian 12 DEB 與 Fedora 45 RPM，並提供 14 天的測試用 artifacts。這些是未簽署
+預覽包，不會建立公開 Release 或自動更新通道。正式發佈前請完成
+[`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)，並在真實目標 OS 驗證安裝、原生 Wi-Fi
+權限及解除安裝流程。
+
 Windows 瀏覽器連接器與 Capacitor 行動版仍保留作為相容路徑；它們和 Rust 原生桌面
 程式是分開的，並各自保留原有平台限制。
 

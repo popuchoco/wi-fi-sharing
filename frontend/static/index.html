@@ -317,14 +317,26 @@
   }
   .wifi-action.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; }
   .wifi-action:disabled { opacity: 0.55; cursor: not-allowed; }
-  .wifi-status { min-height: 2.8rem; margin: 0.9rem 0; color: var(--text-secondary); line-height: 1.5; }
+  .wifi-status { min-height: 2.8rem; margin: 0.9rem 0; color: var(--text-secondary); line-height: 1.5; white-space: pre-line; }
   .wifi-status.error { color: #b42318; }
+  .wifi-guidance { margin: 0.75rem 0; padding: 0.9rem 1rem; border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; color: #1e3a8a; line-height: 1.55; }
+  .wifi-guidance strong { display: block; margin-bottom: 0.25rem; }
+  .wifi-guidance p { margin: 0; }
   .wifi-label { display: block; margin: 0.8rem 0 0.35rem; font-weight: 650; }
   .wifi-select { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem; background: #fff; color: var(--text-primary); font: inherit; }
   .wifi-private-note { margin: 0.75rem 0; padding: 0.75rem; border-radius: 10px; background: #f1f5f9; color: #475569; font-size: 0.85rem; line-height: 1.5; }
   .wifi-qr-result { margin-top: 1rem; text-align: center; }
   .wifi-qr-result img { width: min(100%, 260px); height: auto; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
   .wifi-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.8rem; }
+  .wifi-confirm-dialog { width: min(calc(100% - 2rem), 520px); padding: 1.4rem; border: 1px solid var(--border); border-radius: 18px; background: var(--card-bg); color: var(--text-primary); box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3); }
+  .wifi-confirm-dialog::backdrop { background: rgba(15, 23, 42, 0.62); }
+  .wifi-confirm-dialog h2 { margin: 0.2rem 0 0.65rem; font-size: 1.2rem; line-height: 1.4; }
+  .wifi-confirm-dialog p { line-height: 1.55; }
+  .wifi-confirm-network { padding: 0.65rem 0.8rem; border-radius: 9px; background: #f1f5f9; font-weight: 650; overflow-wrap: anywhere; }
+  .wifi-confirm-warning { color: #7f1d1d; }
+  .wifi-confirm-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.6rem; margin-top: 1.2rem; }
+  :focus-visible { outline: 3px solid #1d4ed8; outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 
   .auth-gate, .privacy-consent {
     max-width: 820px;
@@ -440,6 +452,10 @@
         <p class="wifi-status" id="wifiStatus" role="status" aria-live="polite">正在辨識作業系統並列出已儲存網路名稱；尚未讀取密碼。</p>
       </div>
     </div>
+    <aside class="wifi-guidance" id="wifiGuidance" hidden aria-labelledby="wifiGuidanceTitle">
+      <strong id="wifiGuidanceTitle">開始前，先了解系統存取限制</strong>
+      <p id="wifiGuidanceText"></p>
+    </aside>
     <label class="wifi-label" for="wifiProfileSelect">選擇本機已儲存的網路</label>
     <select class="wifi-select" id="wifiProfileSelect" disabled>
       <option value="">正在連接本機 OS…</option>
@@ -448,6 +464,7 @@
     <div class="wifi-actions">
       <button type="button" class="wifi-action primary" id="wifiGenerate" disabled>產生分享 QR Code</button>
       <button type="button" class="wifi-action" id="wifiShare" hidden>分享／下載 QR Code</button>
+      <button type="button" class="wifi-action" id="wifiHide" hidden>隱藏 QR Code</button>
     </div>
     <div class="wifi-qr-result" id="wifiQrResult" hidden>
       <img id="wifiQrImage" alt="所選 Wi-Fi 的連線 QR Code">
@@ -455,6 +472,17 @@
     </div>
   </section>
 </main>
+
+<dialog class="wifi-confirm-dialog" id="wifiConfirmDialog" aria-labelledby="wifiConfirmTitle" aria-describedby="wifiConfirmCopy">
+  <h2 id="wifiConfirmTitle">即將產生包含 Wi-Fi 密碼的 QR Code</h2>
+  <p class="wifi-confirm-network" id="wifiConfirmNetwork"></p>
+  <p id="wifiConfirmCopy">繼續後，系統會嘗試讀取你選定網路的憑證，並在這台裝置上產生 QR Code。密碼會包含在 QR Code 圖片中，不會傳送到雲端。</p>
+  <p class="wifi-confirm-warning">任何能看見、掃描或取得這張 QR Code 圖片的人，都可能連上這個 Wi-Fi。請只交給你信任的對象，並避免將圖片公開張貼。</p>
+  <div class="wifi-confirm-actions">
+    <button type="button" class="wifi-action" id="wifiConfirmCancel">取消</button>
+    <button type="button" class="wifi-action primary" id="wifiConfirmProceed">我了解，產生 QR Code</button>
+  </div>
+</dialog>
 
 <div class="help-backdrop" id="helpBackdrop" hidden>
   <section class="help-panel" id="helpPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
@@ -682,11 +710,68 @@ const wifiStatus = document.getElementById("wifiStatus");
 const wifiProfileSelect = document.getElementById("wifiProfileSelect");
 const wifiGenerate = document.getElementById("wifiGenerate");
 const wifiShare = document.getElementById("wifiShare");
+const wifiHide = document.getElementById("wifiHide");
 const wifiQrResult = document.getElementById("wifiQrResult");
 const wifiQrImage = document.getElementById("wifiQrImage");
 const wifiQrCaption = document.getElementById("wifiQrCaption");
+const wifiGuidance = document.getElementById("wifiGuidance");
+const wifiGuidanceText = document.getElementById("wifiGuidanceText");
+const wifiConfirmDialog = document.getElementById("wifiConfirmDialog");
+const wifiConfirmNetwork = document.getElementById("wifiConfirmNetwork");
+const wifiConfirmCancel = document.getElementById("wifiConfirmCancel");
+const wifiConfirmProceed = document.getElementById("wifiConfirmProceed");
 let wifiQrUrl = null;
 let selectedProfileName = "";
+let resolveWifiConfirmation = null;
+
+function platformAccessHint(os = clientOS) {
+  const hints = {
+    windows: "Windows 可能限制應用程式讀取明文 Wi-Fi 金鑰；此 App 不會自動提權。你可改用 Windows Wi-Fi 設定中該網路的「顯示 Wi-Fi 網路密碼」或系統 QR 功能（若你的版本提供）。",
+    macos: "macOS 會依鑰匙圈與網路設定權限控制密碼存取。若系統詢問鑰匙圈授權，只有在你剛選定此網路且信任本 App 時才允許；也可改用 macOS 的「密碼」或「鑰匙圈存取」查看已儲存密碼，或使用 Apple 裝置的系統 Wi-Fi 分享流程。",
+    linux: "Linux 版只支援 NetworkManager。此 App 不會彈出密碼提示；NetworkManager 只會回傳持久化的密碼或目前登入工作階段 Secret Agent 提供的密碼。請檢查桌面網路設定中的已儲存網路，或確認 NetworkManager Secret Agent 正在執行。"
+  };
+  return hints[os] || "請使用作業系統本身的 Wi-Fi 設定或密碼管理工具查看／分享網路；此 App 不會要求你輸入 Wi-Fi 密碼。";
+}
+
+function showWifiPlatformGuidance(os) {
+  if (!isNativeDesktop && os !== "windows") {
+    wifiGuidance.hidden = true;
+    return;
+  }
+  wifiGuidanceText.textContent = platformAccessHint(os);
+  wifiGuidance.hidden = false;
+}
+
+function wifiErrorMessage(error, fallbackHint = "") {
+  const detail = error?.message || String(error);
+  if (/access (was )?denied|permission|keychain|secret agent/i.test(detail)) {
+    return `${detail}\n\n${platformAccessHint()}`;
+  }
+  return `${detail} ${fallbackHint}`.trim();
+}
+
+function askToGenerateWifiQr(profileName) {
+  wifiConfirmNetwork.textContent = `選定的網路：${profileName || "未命名網路"}`;
+  if (typeof wifiConfirmDialog.showModal !== "function") {
+    return Promise.resolve(window.confirm(
+      `即將為「${profileName}」產生包含 Wi-Fi 密碼的 QR Code。圖片可被掃描或轉傳；只分享給你信任的對象。密碼不會傳送到雲端。要繼續嗎？`
+    ));
+  }
+  wifiConfirmDialog.returnValue = "";
+  return new Promise(resolve => {
+    resolveWifiConfirmation = resolve;
+    wifiConfirmDialog.showModal();
+    wifiConfirmCancel.focus();
+  });
+}
+
+wifiConfirmCancel.addEventListener("click", () => wifiConfirmDialog.close("cancel"));
+wifiConfirmProceed.addEventListener("click", () => wifiConfirmDialog.close("confirm"));
+wifiConfirmDialog.addEventListener("close", () => {
+  const resolve = resolveWifiConfirmation;
+  resolveWifiConfirmation = null;
+  resolve?.(wifiConfirmDialog.returnValue === "confirm");
+});
 
 async function deviceWifiFetch(path, options = {}) {
   if (isNativeDesktop) {
@@ -728,6 +813,7 @@ function clearWifiQr() {
   wifiQrUrl = null;
   wifiQrResult.hidden = true;
   wifiShare.hidden = true;
+  wifiHide.hidden = true;
   wifiQrImage.removeAttribute("src");
 }
 
@@ -758,6 +844,7 @@ async function initializeLocalWifi() {
       deviceOsBadge.textContent = `裝置系統：${osNames[clientOS] || clientOS}`;
       setWifiStatus(`Rust 已辨識為 ${osNames[clientOS] || clientOS}。正在透過本機 OS 介面列出網路名稱；尚未讀取密碼。`);
     }
+    showWifiPlatformGuidance(identity.host_os);
     if (!identity.os_matches) {
       throw new Error(`瀏覽器裝置是 ${osNames[identity.client_os] || identity.client_os}，但本機連接器在 ${osNames[identity.host_os] || identity.host_os}。請在要分享 Wi-Fi 的那台裝置上啟動介面。`);
     }
@@ -786,7 +873,7 @@ async function initializeLocalWifi() {
     const localHint = isNativeDesktop
       ? "請確認這台桌面裝置的 Wi-Fi 服務可用，並允許系統要求的存取權限。"
       : "請在分享 Wi-Fi 的 Windows 電腦上以 DEVICE_WIFI_LOCAL_MODE=1 啟動前端，或安裝 Rust 桌面 App。";
-    setWifiStatus(`${error.message} ${localHint}`.trim(), true);
+    setWifiStatus(wifiErrorMessage(error, localHint), true);
     wifiProfileSelect.replaceChildren(new Option("無法連接本機 Wi-Fi 介面", ""));
   }
 }
@@ -800,6 +887,11 @@ wifiProfileSelect.addEventListener("change", () => {
 wifiGenerate.addEventListener("click", async () => {
   const profileId = wifiProfileSelect.value;
   if (!profileId) return;
+  const confirmed = await askToGenerateWifiQr(selectedProfileName);
+  if (!confirmed) {
+    wifiGenerate.focus();
+    return;
+  }
   clearWifiQr();
   wifiGenerate.disabled = true;
   setWifiStatus("正在由本機系統 API 讀取你選定的密碼並產生 QR Code…");
@@ -815,12 +907,19 @@ wifiGenerate.addEventListener("click", async () => {
     wifiQrCaption.textContent = selectedProfileName;
     wifiQrResult.hidden = false;
     wifiShare.hidden = false;
+    wifiHide.hidden = false;
     setWifiStatus("QR Code 已在本機產生。請讓對方掃描，或使用分享／下載功能；密碼沒有傳到雲端。");
   } catch (error) {
-    setWifiStatus(error.message, true);
+    setWifiStatus(wifiErrorMessage(error), true);
   } finally {
     wifiGenerate.disabled = false;
+    wifiGenerate.focus();
   }
+});
+wifiHide.addEventListener("click", () => {
+  clearWifiQr();
+  setWifiStatus("QR Code 已從畫面隱藏，並已撤銷本頁暫存連結；若曾下載或分享圖片，請另行移除那些副本。");
+  wifiGenerate.focus();
 });
 wifiShare.addEventListener("click", async () => {
   if (!wifiQrUrl) return;

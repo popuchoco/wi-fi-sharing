@@ -1,0 +1,142 @@
+name: Desktop package previews
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows MSI and NSIS preview
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build unsigned installers
+        working-directory: desktop
+        run: npm run build -- --bundles "msi,nsis"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-preview-windows
+          path: |
+            desktop/target/release/bundle/msi/*.msi
+            desktop/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    name: macOS DMG preview
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build unsigned DMG
+        working-directory: desktop
+        run: npm run build -- --bundles dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-preview-macos
+          path: desktop/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  ubuntu:
+    name: Ubuntu 22.04 DEB preview
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build DEB package
+        working-directory: desktop
+        run: npm run build -- --bundles deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-preview-ubuntu-22.04
+          path: desktop/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+  debian:
+    name: Debian 12 DEB preview
+    runs-on: ubuntu-22.04
+    container: debian:12
+    steps:
+      - name: Install Debian desktop dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            bash git curl wget file tar gzip ca-certificates build-essential \
+            libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build DEB package
+        working-directory: desktop
+        run: npm run build -- --bundles deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-preview-debian-12
+          path: desktop/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+  fedora:
+    name: Fedora 45 RPM preview
+    runs-on: ubuntu-22.04
+    container: fedora:45
+    steps:
+      - name: Install Fedora desktop dependencies
+        run: |
+          dnf install -y \
+            bash git-core curl wget file tar gzip ca-certificates openssl-devel \
+            webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel \
+            libxdo-devel pkgconf-pkg-config gcc gcc-c++ make rpm-build
+          dnf group install -y c-development
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build RPM package
+        working-directory: desktop
+        run: npm run build -- --bundles rpm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-preview-fedora-45
+          path: desktop/target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
+          retention-days: 14
