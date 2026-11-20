@@ -8,11 +8,11 @@ use zeroize::Zeroizing;
 
 pub struct MacWifiAdapter;
 
-fn client() -> Result<WiFiClient, WifiError> {
+fn client() -> std::result::Result<WiFiClient, WifiError> {
     WiFiClient::shared().map_err(|_| WifiError::OsService("CoreWLAN is unavailable.".into()))
 }
 
-fn all_profiles() -> Result<Vec<NetworkProfile>, WifiError> {
+fn all_profiles() -> std::result::Result<Vec<NetworkProfile>, WifiError> {
     let client = client()?;
     Ok(client
         .interface()
@@ -30,7 +30,7 @@ fn profile_id(profile: &NetworkProfile) -> Option<String> {
     Some(URL_SAFE_NO_PAD.encode(opaque))
 }
 
-fn decode_profile_id(id: &str) -> Result<(isize, Vec<u8>), WifiError> {
+fn decode_profile_id(id: &str) -> std::result::Result<(isize, Vec<u8>), WifiError> {
     let opaque = URL_SAFE_NO_PAD
         .decode(id)
         .map_err(|_| WifiError::ProfileNotFound)?;
@@ -48,7 +48,7 @@ fn decode_profile_id(id: &str) -> Result<(isize, Vec<u8>), WifiError> {
 
 #[async_trait]
 impl WifiAdapter for MacWifiAdapter {
-    async fn identity(&self) -> Result<WifiIdentity, WifiError> {
+    async fn identity(&self) -> std::result::Result<WifiIdentity, WifiError> {
         let client = client()?;
         let interface = client.interface();
         let (current_ssid, limitation) = match interface.as_ref().map(Interface::ssid) {
@@ -69,7 +69,7 @@ impl WifiAdapter for MacWifiAdapter {
         })
     }
 
-    async fn profiles(&self) -> Result<Vec<WifiProfile>, WifiError> {
+    async fn profiles(&self) -> std::result::Result<Vec<WifiProfile>, WifiError> {
         let profiles = all_profiles()?;
         let current = client()
             .ok()
@@ -89,7 +89,10 @@ impl WifiAdapter for MacWifiAdapter {
             .collect())
     }
 
-    async fn reveal_selected(&self, profile_id: &str) -> Result<WifiCredentials, WifiError> {
+    async fn reveal_selected(
+        &self,
+        profile_id: &str,
+    ) -> std::result::Result<WifiCredentials, WifiError> {
         let (security_raw, ssid_bytes) = decode_profile_id(profile_id)?;
         let profile = all_profiles()?
             .into_iter()
