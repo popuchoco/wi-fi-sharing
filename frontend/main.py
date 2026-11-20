@@ -45,6 +45,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+try:  # Supports both `python main.py` from frontend/ and package imports.
+    from .device_wifi import router as device_wifi_router
+except ImportError:
+    from device_wifi import router as device_wifi_router
+
 RESOURCE = os.environ.get("AGENT_ENGINE_RESOURCE_NAME")
 if not RESOURCE:
     import json
@@ -87,6 +92,7 @@ def _auth_headers() -> dict[str, str]:
 
 
 app = FastAPI()
+app.include_router(device_wifi_router)
 
 
 @app.exception_handler(Exception)
@@ -207,4 +213,11 @@ app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8088)))
+    # The local OS connector must never be exposed to the LAN. Cloud Run still
+    # binds all interfaces as required by the platform.
+    local_device_mode = (
+        os.environ.get("DEVICE_WIFI_LOCAL_MODE") == "1"
+        and not os.environ.get("K_SERVICE")
+    )
+    host = "127.0.0.1" if local_device_mode else "0.0.0.0"
+    uvicorn.run(app, host=host, port=int(os.environ.get("PORT", 8088)))

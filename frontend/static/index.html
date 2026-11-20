@@ -34,6 +34,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     box-shadow: 0 2px 10px rgba(37, 99, 235, 0.2);
   }
   .header-brand {
@@ -71,6 +73,14 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+  }
+  .device-os-badge {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 0.3rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    white-space: nowrap;
   }
   .badge-dot {
     width: 8px;
@@ -167,10 +177,14 @@
   }
   .prompts-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.6rem;
   }
   @media (max-width: 680px) {
+    header { padding: 0.75rem 1rem; }
+    .header-titles h1 { font-size: 1.05rem; }
+    .header-titles p { font-size: 0.72rem; }
+    .device-os-badge { font-size: 0.7rem; }
     .prompts-row {
       grid-template-columns: 1fr;
       gap: 0.4rem;
@@ -203,6 +217,49 @@
     color: var(--accent);
     flex-shrink: 0;
   }
+
+  .wifi-modal[hidden] { display: none; }
+  .wifi-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.56);
+  }
+  .wifi-dialog {
+    width: min(100%, 520px);
+    max-height: min(90vh, 760px);
+    overflow: auto;
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--card-bg);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  }
+  .wifi-dialog-header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+  .wifi-dialog h2 { margin: 0; font-size: 1.15rem; }
+  .wifi-close, .wifi-action {
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-primary);
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+  }
+  .wifi-close { min-width: 44px; padding: 0.5rem; font-size: 1.2rem; }
+  .wifi-action.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; }
+  .wifi-action:disabled { opacity: 0.55; cursor: not-allowed; }
+  .wifi-status { min-height: 2.8rem; margin: 0.9rem 0; color: var(--text-secondary); line-height: 1.5; }
+  .wifi-status.error { color: #b42318; }
+  .wifi-label { display: block; margin: 0.8rem 0 0.35rem; font-weight: 650; }
+  .wifi-select { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem; background: #fff; color: var(--text-primary); font: inherit; }
+  .wifi-private-note { margin: 0.75rem 0; padding: 0.75rem; border-radius: 10px; background: #f1f5f9; color: #475569; font-size: 0.85rem; line-height: 1.5; }
+  .wifi-qr-result { margin-top: 1rem; text-align: center; }
+  .wifi-qr-result img { width: min(100%, 260px); height: auto; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  .wifi-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.8rem; }
 
   /* Input Form */
   .footer-form {
@@ -322,6 +379,7 @@
     <span class="badge-dot"></span>
     <span>A2UI 已就緒</span>
   </div>
+  <div class="device-os-badge" id="deviceOsBadge" aria-live="polite">正在辨識裝置…</div>
 </header>
 
 <div id="log">
@@ -347,7 +405,36 @@
       <span class="prompt-icon">➕</span>
       <span>登記新熱點 VIP-Lounge</span>
     </button>
+    <button type="button" class="prompt-btn" id="deviceWifiOpen">
+      <span class="material-symbols-outlined prompt-icon" aria-hidden="true">wifi</span>
+      <span>分享這台裝置的 Wi-Fi</span>
+    </button>
   </div>
+</div>
+
+<div class="wifi-modal" id="wifiModal" hidden>
+  <section class="wifi-dialog" role="dialog" aria-modal="true" aria-labelledby="wifiDialogTitle">
+    <div class="wifi-dialog-header">
+      <div>
+        <h2 id="wifiDialogTitle">從這台裝置分享 Wi-Fi</h2>
+        <p class="wifi-status" id="wifiStatus" role="status" aria-live="polite">正在辨識作業系統…</p>
+      </div>
+      <button type="button" class="wifi-close" id="wifiClose" aria-label="關閉">×</button>
+    </div>
+    <label class="wifi-label" for="wifiProfileSelect">選擇本機已儲存的網路</label>
+    <select class="wifi-select" id="wifiProfileSelect" disabled>
+      <option value="">等待本機連接器…</option>
+    </select>
+    <p class="wifi-private-note">密碼只會在這台裝置上由作業系統 API 讀取，並在本機即時產生 QR Code；不會送到聊天 Agent 或 Cloud Storage。任何掃描到 QR Code 的人都能嘗試連線，請只分享給你選擇的對象。</p>
+    <div class="wifi-actions">
+      <button type="button" class="wifi-action primary" id="wifiGenerate" disabled>產生分享 QR Code</button>
+      <button type="button" class="wifi-action" id="wifiShare" hidden>分享／下載 QR Code</button>
+    </div>
+    <div class="wifi-qr-result" id="wifiQrResult" hidden>
+      <img id="wifiQrImage" alt="所選 Wi-Fi 的連線 QR Code">
+      <p id="wifiQrCaption"></p>
+    </div>
+  </section>
 </div>
 
 <div class="footer-form">
@@ -364,6 +451,180 @@
 const log = document.getElementById("log");
 const form = document.getElementById("form");
 const input = document.getElementById("input");
+
+function detectClientOS() {
+  const ua = navigator.userAgent || "";
+  const platform = navigator.userAgentData?.platform || navigator.platform || ua;
+  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return "ios";
+  const value = String(platform + " " + ua).toLowerCase();
+  if (/iphone|ipad|ipod|ios/.test(value)) return "ios";
+  if (/android/.test(value)) return "android";
+  if (/windows|win32|win64/.test(value)) return "windows";
+  if (/macintosh|mac os|macintel/.test(value)) return "macos";
+  if (/linux|x11/.test(value)) return "linux";
+  return "unknown";
+}
+
+const clientOS = detectClientOS();
+const deviceOsBadge = document.getElementById("deviceOsBadge");
+const osNames = { windows: "Windows", macos: "macOS", ios: "iOS", android: "Android", linux: "Linux", unknown: "未知系統" };
+deviceOsBadge.textContent = `裝置系統：${osNames[clientOS] || osNames.unknown}`;
+
+const wifiModal = document.getElementById("wifiModal");
+const wifiStatus = document.getElementById("wifiStatus");
+const wifiProfileSelect = document.getElementById("wifiProfileSelect");
+const wifiGenerate = document.getElementById("wifiGenerate");
+const wifiShare = document.getElementById("wifiShare");
+const wifiQrResult = document.getElementById("wifiQrResult");
+const wifiQrImage = document.getElementById("wifiQrImage");
+const wifiQrCaption = document.getElementById("wifiQrCaption");
+let wifiQrUrl = null;
+let selectedProfileName = "";
+
+async function deviceWifiFetch(path, options = {}) {
+  const headers = { "X-Device-OS": clientOS, ...(options.headers || {}) };
+  const response = await fetch(path, { ...options, headers });
+  if (!response.ok) {
+    let detail = `本機連接器回應 ${response.status}`;
+    try { detail = (await response.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  return response;
+}
+
+function setWifiStatus(message, isError = false) {
+  wifiStatus.textContent = message;
+  wifiStatus.classList.toggle("error", isError);
+}
+
+function clearWifiQr() {
+  if (wifiQrUrl) URL.revokeObjectURL(wifiQrUrl);
+  wifiQrUrl = null;
+  wifiQrResult.hidden = true;
+  wifiShare.hidden = true;
+  wifiQrImage.removeAttribute("src");
+}
+
+async function openDeviceWifi() {
+  wifiModal.hidden = false;
+  document.getElementById("wifiClose").focus();
+  wifiProfileSelect.disabled = true;
+  wifiGenerate.disabled = true;
+  wifiProfileSelect.replaceChildren(new Option("正在辨識裝置並連接 OS API…", ""));
+  clearWifiQr();
+  setWifiStatus(`已在瀏覽器端辨識為 ${osNames[clientOS] || osNames.unknown}。正在確認本機連接器…`);
+  try {
+    const identityResponse = await deviceWifiFetch("/device/wifi/identity");
+    const identity = await identityResponse.json();
+    if (!identity.os_matches) {
+      throw new Error(`瀏覽器裝置是 ${osNames[identity.client_os] || identity.client_os}，連接器則在 ${osNames[identity.host_os] || identity.host_os}。請在要分享 Wi-Fi 的那台裝置上啟動連接器。`);
+    }
+    if (!identity.saved_profile_names) {
+      throw new Error(`${osNames[identity.host_os] || identity.host_os} 的系統連接器目前尚未實作。`);
+    }
+    setWifiStatus("OS 已確認為 Windows。正在呼叫 Windows Native Wi-Fi API 讀取目前連線與已儲存網路名稱；尚未讀取密碼。");
+    const response = await deviceWifiFetch("/device/wifi/profiles");
+    const data = await response.json();
+    wifiProfileSelect.replaceChildren(new Option("請選擇 Wi-Fi 網路", ""));
+    for (const profile of data.profiles || []) {
+      const label = profile.is_current ? `${profile.name}（目前連線）` : profile.name;
+      wifiProfileSelect.add(new Option(label, profile.id));
+    }
+    if (!data.profiles?.length) {
+      setWifiStatus("Windows 沒有回傳已儲存的 Wi-Fi 設定檔。", true);
+      return;
+    }
+    const current = (data.profiles || []).find(profile => profile.is_current);
+    if (current) wifiProfileSelect.value = current.id;
+    wifiProfileSelect.disabled = false;
+    wifiGenerate.disabled = !wifiProfileSelect.value;
+    selectedProfileName = wifiProfileSelect.selectedOptions[0]?.textContent || "";
+    setWifiStatus(`已找到 ${data.profiles.length} 個本機網路。密碼只會在你選擇網路並按下「產生分享 QR Code」後讀取。`);
+  } catch (error) {
+    const localHint = error.message.includes("未啟用")
+      ? "請在本機以 DEVICE_WIFI_LOCAL_MODE=1 啟動前端。"
+      : "";
+    setWifiStatus(`${error.message} ${localHint}`.trim(), true);
+  }
+}
+
+document.getElementById("deviceWifiOpen").addEventListener("click", openDeviceWifi);
+function closeWifiModal() {
+  wifiModal.hidden = true;
+  clearWifiQr();
+  document.getElementById("deviceWifiOpen").focus();
+}
+document.getElementById("wifiClose").addEventListener("click", closeWifiModal);
+wifiModal.addEventListener("click", event => {
+  if (event.target === wifiModal) closeWifiModal();
+});
+wifiModal.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeWifiModal();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = [...wifiModal.querySelectorAll("button:not([disabled]):not([hidden]), select:not([disabled])")];
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+wifiProfileSelect.addEventListener("change", () => {
+  clearWifiQr();
+  wifiGenerate.disabled = !wifiProfileSelect.value;
+  selectedProfileName = wifiProfileSelect.selectedOptions[0]?.textContent || "";
+});
+wifiGenerate.addEventListener("click", async () => {
+  const profileId = wifiProfileSelect.value;
+  if (!profileId) return;
+  clearWifiQr();
+  wifiGenerate.disabled = true;
+  setWifiStatus("正在由本機系統 API 讀取你選定的密碼並產生 QR Code…");
+  try {
+    const response = await deviceWifiFetch(`/device/wifi/profiles/${encodeURIComponent(profileId)}/qr`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmed: true })
+    });
+    const blob = await response.blob();
+    wifiQrUrl = URL.createObjectURL(blob);
+    wifiQrImage.src = wifiQrUrl;
+    wifiQrCaption.textContent = selectedProfileName;
+    wifiQrResult.hidden = false;
+    wifiShare.hidden = false;
+    setWifiStatus("QR Code 已在本機產生。請讓對方掃描，或使用分享／下載功能；密碼沒有傳到雲端。");
+  } catch (error) {
+    setWifiStatus(error.message, true);
+  } finally {
+    wifiGenerate.disabled = false;
+  }
+});
+wifiShare.addEventListener("click", async () => {
+  if (!wifiQrUrl) return;
+  const safeName = selectedProfileName.replace(/[^\w.-]+/g, "_") || "share";
+  const filename = `wifi-${safeName}.png`;
+  try {
+    const file = new File([await (await fetch(wifiQrUrl)).blob()], filename, { type: "image/png" });
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      await navigator.share({ title: `Wi-Fi: ${selectedProfileName}`, files: [file] });
+      return;
+    }
+  } catch (error) {
+    if (error.name === "AbortError") return;
+  }
+  const link = document.createElement("a");
+  link.href = wifiQrUrl;
+  link.download = filename;
+  link.click();
+});
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
