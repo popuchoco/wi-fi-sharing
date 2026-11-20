@@ -6,8 +6,9 @@ and Fedora installers for maintainer testing. It does not publish a GitHub Relea
 configure auto-updates, or sign the installers. Unsigned artifacts are not public
 release candidates: Windows and macOS will show platform trust/install warnings.
 
-The current internal package-preview version is `0.3.0-rc.1`; this is not the public
-Desktop 1.0 release candidate.
+The current internal package-preview version is `0.3.0-1` (pre-release 1); this is not
+the public Desktop 1.0 release candidate. Tauri's MSI bundler requires a numeric-only
+pre-release component, so the package version cannot use a textual `-rc.1` suffix.
 
 ## Release gates
 

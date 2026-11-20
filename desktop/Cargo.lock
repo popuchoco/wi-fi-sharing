@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "wifi-core"
-version = "0.3.0-rc.1"
+version = "0.3.0-1"
 dependencies = [
  "async-trait",
  "image",
@@ -4621,7 +4621,7 @@ dependencies = [
 
 [[package]]
 name = "wifi-platform"
-version = "0.3.0-rc.1"
+version = "0.3.0-1"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4636,7 +4636,7 @@ dependencies = [
 
 [[package]]
 name = "wifi-sharing-desktop"
-version = "0.3.0-rc.1"
+version = "0.3.0-1"
 dependencies = [
  "serde",
  "tauri",
