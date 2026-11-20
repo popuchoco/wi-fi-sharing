@@ -161,6 +161,8 @@ tmp*
 **/node_modules
 npm-debug.log
 yarn-error.log
+desktop/src-tauri/icons/android/
+desktop/src-tauri/icons/ios/
 
 # IDEs and editors
 .idea/

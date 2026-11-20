@@ -460,8 +460,8 @@
   <section class="help-panel" id="helpPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="help-panel-header">
       <div>
-        <h2 id="helpTitle">AI 使用導覽</h2>
-        <p>只協助操作本機分享介面；不會連接本機 Wi-Fi API。請勿在對話貼入密碼。</p>
+        <h2 id="helpTitle">使用說明</h2>
+        <p>只協助操作本機分享介面；Help 不會連接本機 Wi-Fi API。請勿在對話貼入密碼。</p>
       </div>
       <button type="button" class="help-close" id="helpClose" aria-label="關閉使用說明">×</button>
     </div>
@@ -470,7 +470,7 @@
       <div class="msg-row agent">
         <div class="avatar agent-av">💡</div>
         <div class="bubble-wrap">
-          <div class="bubble">我是 WI-FI分享家的使用導覽助理。先在主畫面選擇網路，再按「產生分享 QR Code」。如果找不到網路或系統不允許分享，可以在這裡詢問；本機分享流程不會自動把密碼傳入對話，請不要自行貼上。</div>
+          <div class="bubble">先在主畫面選擇網路，再按「產生分享 QR Code」。如果找不到網路或系統不允許分享，可查看使用說明；本機分享流程不會自動把密碼傳入 Help，請不要自行貼上。</div>
         </div>
       </div>
     </div>
@@ -529,6 +529,8 @@ const helpBackdrop = document.getElementById("helpBackdrop");
 const helpPanel = document.getElementById("helpPanel");
 const helpOpen = document.getElementById("helpOpen");
 const helpClose = document.getElementById("helpClose");
+const nativeInvoke = window.__TAURI__?.core?.invoke;
+const isNativeDesktop = typeof nativeInvoke === "function";
 let chatAuthorized = false;
 let helpAuthInitialized = false;
 let helpGuideRequested = false;
@@ -561,6 +563,7 @@ async function refreshAuthStatus() {
     setChatAuthorized(false);
     return;
   }
+  document.getElementById("helpTitle").textContent = "AI 使用導覽";
   if (data.configuration_missing) {
     authGate.hidden = false;
     authForm.hidden = true;
@@ -611,6 +614,13 @@ function openHelp() {
   helpClose.focus();
   if (helpAuthInitialized) return;
   helpAuthInitialized = true;
+  if (isNativeDesktop) {
+    authGate.hidden = false;
+    authForm.hidden = true;
+    authStatus.textContent = "Rust 桌面版的本機分享不依賴聊天服務。AI Help 仍可在網頁版使用；本面板提供本機操作提示。";
+    setChatAuthorized(false);
+    return;
+  }
   refreshAuthStatus().catch(error => {
     helpAuthInitialized = false;
     authGate.hidden = false;
@@ -663,7 +673,7 @@ function detectClientOS() {
   return "unknown";
 }
 
-const clientOS = detectClientOS();
+let clientOS = detectClientOS();
 const deviceOsBadge = document.getElementById("deviceOsBadge");
 const osNames = { windows: "Windows", macos: "macOS", ios: "iOS", android: "Android", linux: "Linux", unknown: "未知系統" };
 deviceOsBadge.textContent = `裝置系統：${osNames[clientOS] || osNames.unknown}`;
@@ -679,6 +689,25 @@ let wifiQrUrl = null;
 let selectedProfileName = "";
 
 async function deviceWifiFetch(path, options = {}) {
+  if (isNativeDesktop) {
+    let value;
+    if (path === "/device/wifi/identity") {
+      value = await nativeInvoke("wifi_identity");
+    } else if (path === "/device/wifi/profiles") {
+      value = { profiles: await nativeInvoke("wifi_profiles") };
+    } else {
+      const match = path.match(/^\/device\/wifi\/profiles\/([^/]+)\/qr$/);
+      if (!match || options.method !== "POST") throw new Error("不支援的本機 Wi-Fi 操作。");
+      let confirmation = false;
+      try { confirmation = JSON.parse(options.body || "{}").confirmed === true; } catch {}
+      const bytes = await nativeInvoke("wifi_generate_qr", {
+        profileId: decodeURIComponent(match[1]),
+        confirmed: confirmation
+      });
+      return new Response(new Uint8Array(bytes), { headers: { "Content-Type": "image/png" } });
+    }
+    return new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json" } });
+  }
   const headers = { "X-Device-OS": clientOS, ...(options.headers || {}) };
   const response = await fetch(path, { ...options, headers });
   if (!response.ok) {
@@ -707,28 +736,37 @@ async function initializeLocalWifi() {
   wifiGenerate.disabled = true;
   wifiProfileSelect.replaceChildren(new Option("正在偵測本機支援情況…", ""));
   clearWifiQr();
-  if (clientOS === "android" || clientOS === "ios") {
+  if (!isNativeDesktop && (clientOS === "android" || clientOS === "ios")) {
     const system = osNames[clientOS];
     setWifiStatus(`${system} 瀏覽器不允許網頁列出已儲存 Wi-Fi。請使用 WI-FI分享家的原生 App，再由 OS 系統分享畫面選擇網路。`);
     wifiProfileSelect.replaceChildren(new Option("請改用原生 App／系統分享", ""));
     return;
   }
-  if (clientOS !== "windows") {
-    setWifiStatus(`${osNames[clientOS] || osNames.unknown} 的本機連接器尚未實作。目前只有 Windows 桌面版可在本機列出已儲存網路。`);
-    wifiProfileSelect.replaceChildren(new Option("目前平台尚未支援", ""));
+  if (!isNativeDesktop && clientOS !== "windows") {
+    setWifiStatus(`${osNames[clientOS] || osNames.unknown} 瀏覽器不能列出已儲存的 Wi-Fi。請安裝 Rust 桌面 App，再由本機 OS 介面選擇網路。`);
+    wifiProfileSelect.replaceChildren(new Option("請使用本機桌面 App", ""));
     return;
   }
-  setWifiStatus("已辨識為 Windows。正在連接這台電腦的本機 Wi-Fi 介面；目前只讀取網路名稱，不讀取密碼。 ");
+  setWifiStatus(isNativeDesktop
+    ? "正在由 Rust 偵測本機桌面系統與可用的 Wi-Fi 介面…"
+    : "已辨識為 Windows。正在連接這台電腦的本機 Wi-Fi 介面；目前只讀取網路名稱，不讀取密碼。 ");
   try {
     const identityResponse = await deviceWifiFetch("/device/wifi/identity");
     const identity = await identityResponse.json();
+    if (isNativeDesktop) {
+      clientOS = identity.host_os;
+      deviceOsBadge.textContent = `裝置系統：${osNames[clientOS] || clientOS}`;
+      setWifiStatus(`Rust 已辨識為 ${osNames[clientOS] || clientOS}。正在透過本機 OS 介面列出網路名稱；尚未讀取密碼。`);
+    }
     if (!identity.os_matches) {
       throw new Error(`瀏覽器裝置是 ${osNames[identity.client_os] || identity.client_os}，但本機連接器在 ${osNames[identity.host_os] || identity.host_os}。請在要分享 Wi-Fi 的那台裝置上啟動介面。`);
     }
     if (!identity.saved_profile_names) {
       throw new Error(`${osNames[identity.host_os] || identity.host_os} 的本機 Wi-Fi 連接器尚未實作。`);
     }
-    setWifiStatus("正在呼叫 Windows Native Wi-Fi API 列出設定檔名稱；尚未讀取密碼。");
+    setWifiStatus(isNativeDesktop
+      ? `正在呼叫 ${identity.adapter} 列出設定檔名稱；尚未讀取密碼。`
+      : "正在呼叫 Windows Native Wi-Fi API 列出設定檔名稱；尚未讀取密碼。");
     const response = await deviceWifiFetch("/device/wifi/profiles");
     const data = await response.json();
     wifiProfileSelect.replaceChildren(new Option("請選擇 Wi-Fi 網路", ""));
@@ -737,14 +775,17 @@ async function initializeLocalWifi() {
       wifiProfileSelect.add(new Option(label, profile.id));
     }
     if (!data.profiles?.length) {
-      setWifiStatus("Windows 沒有回傳已儲存的 Wi-Fi 設定檔。", true);
+      setWifiStatus(`${osNames[identity.host_os] || identity.host_os} 沒有回傳已儲存的 Wi-Fi 設定檔。`, true);
       return;
     }
     wifiProfileSelect.disabled = false;
     wifiGenerate.disabled = true;
-    setWifiStatus(`找到 ${data.profiles.length} 個本機網路名稱。請親自選擇一個；按下「產生分享 QR Code」後才會讀取該網路的密碼。`);
+    const limitation = identity.limitation ? ` ${identity.limitation}` : "";
+    setWifiStatus(`找到 ${data.profiles.length} 個本機網路名稱。請親自選擇一個；按下「產生分享 QR Code」後才會讀取該網路的密碼。${limitation}`);
   } catch (error) {
-    const localHint = "請在分享 Wi-Fi 的 Windows 電腦上以 DEVICE_WIFI_LOCAL_MODE=1 啟動前端。";
+    const localHint = isNativeDesktop
+      ? "請確認這台桌面裝置的 Wi-Fi 服務可用，並允許系統要求的存取權限。"
+      : "請在分享 Wi-Fi 的 Windows 電腦上以 DEVICE_WIFI_LOCAL_MODE=1 啟動前端，或安裝 Rust 桌面 App。";
     setWifiStatus(`${error.message} ${localHint}`.trim(), true);
     wifiProfileSelect.replaceChildren(new Option("無法連接本機 Wi-Fi 介面", ""));
   }

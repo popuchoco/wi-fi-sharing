@@ -46,10 +46,11 @@ confirm sharing; the app must not silently export every stored credential.
 
 | OS | Current connection | Saved profile list / password | Product path |
 |---|---|---|---|
-| Windows desktop | Native Wi-Fi API (`WlanQueryInterface`) | `WlanGetProfile`; plaintext keys are normally restricted to Administrators | Implemented local adapter plus selected-profile UAC helper; helper emits one temporary QR and never elevates the chat proxy. |
+| Windows desktop | Native Wi-Fi API (`WlanQueryInterface`) | `WlanGetProfile`; plaintext keys are normally restricted to Administrators | Rust desktop adapter does not auto-elevate; selected secured profile needs OS-granted plaintext access. The separate Python browser compatibility bridge can use its one-shot UAC helper. |
 | Android | Native connectivity/Wi-Fi APIs, subject to runtime permission and API level | Ordinary apps cannot enumerate all system profiles; Android Settings can show a selected network's share QR | Implemented Capacitor adapter for current SSID/security metadata and Settings handoff for saved-network QR. |
 | iOS/iPadOS | `NEHotspotNetwork.fetchCurrent` can return current network info only with required entitlement/authorization conditions | Passwords/Settings lets the user inspect/share; third-party apps have no general-purpose API to enumerate saved profiles | Implemented Capacitor adapter source for current metadata and OS-sharing guidance; requires Apple entitlement/authorization and macOS/Xcode to build/test. |
-| macOS | CoreWLAN/native APIs | Keychain and app authorization govern secret access | Separate macOS adapter; not implemented in this milestone. |
+| macOS | CoreWLAN | Preferred network profiles; Keychain governs selected secret access | Rust desktop adapter lists CoreWLAN profiles and reads a selected personal-network password from user/system Keychain. Current SSID requires Location Services authorization; no silent prompt is issued. |
+| Linux desktop | NetworkManager D-Bus | Saved Wi-Fi profiles; secrets are separate from `GetSettings` | Rust adapter for NetworkManager desktops (Ubuntu/Fedora/Debian). `GetSecrets` returns only persistent or session-agent secrets and never prompts. Other network stacks are not covered yet. |
 
 ## Implementation in this repository
 
@@ -60,10 +61,17 @@ confirm sharing; the app must not silently export every stored credential.
 - Help is an instruction-only guide with no Wi-Fi, file, QR, or cloud-storage
   tools. The browser sends only the Help message and normalized client OS after
   consent; no Wi-Fi profile data or QR is included.
+- `desktop/` is the cross-platform Rust/Tauri desktop app. `wifi-core` owns the
+  platform-neutral domain and local QR generation; `wifi-platform` selects a
+  platform-specific adapter at compile time (Windows WLAN API, macOS CoreWLAN +
+  Keychain, Linux NetworkManager D-Bus); `src-tauri` exposes only identity,
+  profile-list, and confirmed single-profile QR commands to the bundled UI.
 - `frontend/device_wifi.py` implements the Windows adapter using
   `wlanapi.dll`: current connection, saved profile names, and user-selected
   profile lookup. `frontend/windows_wifi_elevated.py` is a one-shot UAC helper
   for the selected protected network; it has no HTTP listener or cloud credentials.
+  It is only used by the browser compatibility bridge; the Rust desktop app
+  does not auto-elevate.
 - Local-only endpoints live under `/device/wifi/*`. They require
   `DEVICE_WIFI_LOCAL_MODE=1`, reject non-loopback callers, compare client and
   host OS, and are disabled on Cloud Run/Agent Engine.
@@ -75,7 +83,8 @@ confirm sharing; the app must not silently export every stored credential.
   Wi-Fi Settings for an OS-generated saved-network QR. iOS uses
   `NEHotspotNetwork.fetchCurrent` for allowed metadata and provides OS-owned
   credential-sharing instructions; the public iOS API does not return saved passwords.
-- macOS native support remains future work.
+- Native desktop Help is an offline usage guide. It does not send chat or Wi-Fi
+  data to the cloud. The optional cloud Help workflow remains in the browser app.
 
 ## Local Windows developer run
 
@@ -92,6 +101,25 @@ requires an elevated process to return a plaintext stored key; after the user
 selects one profile, a separate one-shot helper requests UAC and writes only a
 temporary QR PNG. The chat proxy itself remains unprivileged. Android/iOS build
 steps and platform-specific requirements are in `mobile/README.md`.
+
+## Rust desktop build
+
+The native desktop app does not require the Python loopback bridge. From the
+repository root, install the target OS prerequisites in `desktop/README.md`,
+then run:
+
+```sh
+cd desktop
+npm ci
+npm run dev
+npm run test
+npm run build
+```
+
+The new CI matrix is configured to compile the Rust workspace on Windows, macOS,
+and Ubuntu 22.04. Build
+Linux distribution packages on their target/oldest supported distribution
+because the WebKitGTK and glibc ABI baseline depends on the build host.
 
 ## Platform references
 

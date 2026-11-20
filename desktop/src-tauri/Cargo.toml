@@ -1,0 +1,15 @@
+[package]
+name = "wifi-sharing-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde.workspace = true
+tauri = { version = "2", features = [] }
+wifi-core = { path = "../crates/wifi-core" }
+wifi-platform = { path = "../crates/wifi-platform" }

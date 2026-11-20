@@ -1,0 +1,19 @@
+[workspace]
+members = ["crates/wifi-core", "crates/wifi-platform", "src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.82"
+
+[workspace.dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
+qrcode = { version = "0.14", default-features = false, features = ["image"] }
+roxmltree = "0.20"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+zeroize = { version = "1", features = ["zeroize_derive"] }

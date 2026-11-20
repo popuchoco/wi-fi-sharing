@@ -6,8 +6,11 @@
 
 ## 目前產品範圍
 
-- **Web 本機分享介面**：Windows 桌面版可在本機列出設定檔名稱；使用者選定
-  網路並按下產生按鈕後，才向 Windows API 讀取該設定檔憑證並在本機產生 QR。
+- **Rust 原生桌面 App**：`desktop/` 使用 Tauri 2 + Rust，涵蓋 Windows、macOS
+  與使用 NetworkManager 的 Ubuntu/Fedora/Debian 桌面；以平台原生 API 列出已存網路，
+  使用者選定並按下產生後才請求單一網路憑證，QR 留在本機產生。
+- **Web 相容介面**：一般瀏覽器無權列出已存 Wi-Fi；目前保留 Windows 本機 Python
+  連接器供開發/相容使用。跨平台桌面分享請使用 Rust 原生 App，而非雲端網站。
 - **原生行動端**：`mobile/` 是 Capacitor Android/iOS App 原型；OS 允許時讀取
   目前連線中繼資料。已儲存網路與密碼仍透過 Android/iOS 的系統設定分享流程，
   不由一般 App 靜默列舉或讀取。
@@ -18,6 +21,11 @@
 ## 隱私邊界
 
 - OS 偵測在瀏覽器端完成；瀏覽器不能把伺服器 OS 當作使用者裝置 OS。
+- 原生桌面 OS 偵測與 Wi-Fi 存取都在 Rust 桌面程序完成，平台 API 不經網頁伺服器。
+- Rust 密碼型別不序列化、不實作 `Debug`，並以 `zeroize` 在生命週期結束時清除可控緩衝；
+  系統框架或作業系統自身產生的內部副本不在應用程式可控範圍。
+- Windows、macOS 與 NetworkManager 對密碼各自施加 OS 權限。應用程式不會靜默提權、
+  不會掃描完所有密碼，也不會用瀏覽器或雲端代理冒充本機權限。
 - Web 本機連接器只在明確啟用的 Windows 本機 loopback 服務工作；不可部署到
   Cloud Run 以讀取訪客裝置。密碼只在按下 QR 產生時由 Windows 本機流程讀取。
 - 本機分享程式不會自動把 Wi-Fi 憑證與 QR 帶入 Help Agent、Google AI、
@@ -48,6 +56,24 @@ python main.py
 開啟 <http://127.0.0.1:8088>。本機分享不需要 Google Cloud SDK、ADC、Agent
 Engine 資源或聊天存取碼。若 Windows 不允許一般程序讀取選定網路的密碼，
 本機流程會另行要求 UAC；聊天 Proxy 不會提權。只在可信任的本機裝置操作。
+
+## Rust 桌面 App（建議）
+
+跨平台原生桌面 App 的架構、Windows/macOS/Linux 權限邊界、Ubuntu/Debian/Fedora
+依賴與建置方式見 [`desktop/README.md`](desktop/README.md)。完成該平台的 Tauri
+系統依賴後：
+
+```sh
+cd desktop
+npm ci
+npm run dev
+npm run test
+npm run build
+```
+
+Windows 預設策略可能要求以具備明文金鑰讀取權限的使用者工作階段啟動；App 不會
+自行呼叫 UAC。macOS 目前 SSID 受定位服務授權影響；Linux 只支援 NetworkManager
+並遵守其 `GetSecrets` 不主動提示使用者輸入密碼的行為。
 
 若要使用選用 AI Help，另外設定 `AGENT_ENGINE_RESOURCE_NAME` 並提供可用的
 Google Cloud ADC。Help 只有在使用者開啟面板、同意雲端處理並送出請求時才會
