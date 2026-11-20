@@ -19,6 +19,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
+      - name: Verify desktop version alignment
+        working-directory: desktop
+        run: npm run check:version
       - name: Build unsigned installers
         working-directory: desktop
         run: npm run build -- --bundles "msi,nsis"
@@ -43,6 +46,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
+      - name: Verify desktop version alignment
+        working-directory: desktop
+        run: npm run check:version
       - name: Build unsigned DMG
         working-directory: desktop
         run: npm run build -- --bundles dmg
@@ -71,6 +77,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
+      - name: Verify desktop version alignment
+        working-directory: desktop
+        run: npm run check:version
       - name: Build DEB package
         working-directory: desktop
         run: npm run build -- --bundles deb
@@ -101,6 +110,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
+      - name: Verify desktop version alignment
+        working-directory: desktop
+        run: npm run check:version
       - name: Build DEB package
         working-directory: desktop
         run: npm run build -- --bundles deb
@@ -131,6 +143,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci
+      - name: Verify desktop version alignment
+        working-directory: desktop
+        run: npm run check:version
       - name: Build RPM package
         working-directory: desktop
         run: npm run build -- --bundles rpm

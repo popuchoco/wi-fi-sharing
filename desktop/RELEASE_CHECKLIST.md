@@ -6,11 +6,15 @@ and Fedora installers for maintainer testing. It does not publish a GitHub Relea
 configure auto-updates, or sign the installers. Unsigned artifacts are not public
 release candidates: Windows and macOS will show platform trust/install warnings.
 
+The current internal package-preview version is `0.3.0-rc.1`; this is not the public
+Desktop 1.0 release candidate.
+
 ## Release gates
 
-- [ ] Set and review the release version consistently in `desktop/Cargo.toml`,
-  `desktop/package.json`, `desktop/package-lock.json`, and
-  `desktop/src-tauri/tauri.conf.json`.
+- [ ] Validate version synchronization with `npm run check:version`,
+  `cargo metadata --locked`, and `npm ci`;
+  update `desktop/Cargo.toml`, `desktop/package.json`, `desktop/package-lock.json`, and
+  `desktop/src-tauri/tauri.conf.json` together before the next version increment.
 - [ ] Run `.github/workflows/desktop.yml` successfully on Windows, macOS, and Ubuntu.
 - [ ] Run `.github/workflows/desktop-packages.yml` and install/test the generated
   packages on actual target systems; package builds are not runtime smoke tests.

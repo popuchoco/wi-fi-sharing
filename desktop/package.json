@@ -1,12 +1,13 @@
 {
   "name": "wifi-sharing-desktop",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0-rc.1",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
     "check": "cargo check --workspace --locked",
+    "check:version": "node scripts/check-version.mjs",
     "test": "cargo test --workspace --locked"
   },
   "devDependencies": {

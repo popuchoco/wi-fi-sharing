@@ -40,6 +40,10 @@ jobs:
         working-directory: desktop
         run: npm ci
 
+      - name: Verify desktop version alignment
+        working-directory: desktop
+        run: npm run check:version
+
       - name: Compile workspace
         working-directory: desktop
         run: npm run check
