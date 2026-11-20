@@ -176,7 +176,7 @@ mod tests {
     fn qr_field_escape_matches_wifi_qr_delimiters() {
         let mut escaped = String::new();
         append_escaped_wifi_field(&mut escaped, r#"a\\b;c,d:e"f"#);
-        assert_eq!(escaped, r#"a\\\\b\\;c\\,d\\:e\\"f"#);
+        assert_eq!(escaped, r#"a\\\\b\;c\,d\:e\"f"#);
     }
 
     #[test]

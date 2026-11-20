@@ -193,7 +193,7 @@ fn list_profiles(handle: HANDLE) -> Result<Vec<WifiProfile>, WifiError> {
 fn profile_text<'document, 'xml>(
     document: &'document roxmltree::Document<'xml>,
     name: &str,
-) -> &'xml str {
+) -> &'document str {
     document
         .descendants()
         .find(|node| node.is_element() && node.tag_name().name() == name)
